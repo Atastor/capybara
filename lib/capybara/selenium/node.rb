@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# Selenium specific implementation of the Capybara::Driver::Node API
 class Capybara::Selenium::Node < Capybara::Driver::Node
   def visible_text
     native.text
@@ -22,7 +23,7 @@ class Capybara::Selenium::Node < Capybara::Driver::Node
 
   def value
     if tag_name == 'select' && multiple?
-      native.find_elements(:css, 'option:checked').map { |n| n[:value] || n.text }
+      native.find_elements(:css, 'option:checked').map { |node| node[:value] || node.text }
     else
       native[:value]
     end
@@ -149,11 +150,11 @@ class Capybara::Selenium::Node < Capybara::Driver::Node
   end
 
   def find_xpath(locator)
-    native.find_elements(:xpath, locator).map { |n| self.class.new(driver, n) }
+    native.find_elements(:xpath, locator).map { |node| self.class.new(driver, node) }
   end
 
   def find_css(locator)
-    native.find_elements(:css, locator).map { |n| self.class.new(driver, n) }
+    native.find_elements(:css, locator).map { |node| self.class.new(driver, node) }
   end
 
   def ==(other)
@@ -206,22 +207,23 @@ private
   end
 
   def set_text(value, clear: nil, **_unused)
-    if value.to_s.empty? && clear.nil?
+    value = value.to_s
+    if value.empty? && clear.nil?
       native.clear
     elsif clear == :backspace
       # Clear field by sending the correct number of backspace keys.
       backspaces = [:backspace] * self.value.to_s.length
-      send_keys(*([:end] + backspaces + [value.to_s]))
+      send_keys(*([:end] + backspaces + [value]))
     elsif clear == :none
-      send_keys(value.to_s)
+      send_keys(value)
     elsif clear.is_a? Array
-      send_keys(*clear, value.to_s)
+      send_keys(*clear, value)
     else
       # Clear field by JavaScript assignment of the value property.
       # Script can change a readonly element which user input cannot, so
       # don't execute if readonly.
       driver.execute_script "arguments[0].value = ''", self
-      send_keys(value.to_s)
+      send_keys(value)
     end
   end
 
